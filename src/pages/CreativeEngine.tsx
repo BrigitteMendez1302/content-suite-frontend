@@ -423,8 +423,12 @@ export default function CreativeEngine() {
 
               {res?.output_text ? (
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                  <div className="text-sm font-semibold text-slate-900">Output</div>
-                  <pre className="mt-2 whitespace-pre-wrap text-sm text-slate-800">{res.output_text}</pre>
+                <div className="text-sm font-semibold text-slate-900">Output</div>
+                <div className="mt-2 max-h-[420px] overflow-auto rounded-xl border border-slate-100 bg-slate-50 p-3">
+                    <p className="whitespace-pre-wrap text-sm leading-6 text-slate-900">
+                    {res.output_text}
+                    </p>
+                </div>
                 </div>
               ) : (
                 <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-600">
