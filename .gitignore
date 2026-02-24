@@ -9,9 +9,9 @@ dist-ssr/
 .vite/
 
 # Env files (secrets)
-.env
-.env.*
-*.env
+# .env
+# .env.*
+# *.env
 
 # Logs
 npm-debug.log*

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { inbox, approveContent, rejectContent, auditImage } from "../api";
+import AuthPanel from "../components/AuthPanel";
+import { API_BASE, inbox, approveContent, rejectContent, auditImage } from "../api";
 
 type Item = {
   id: string;
@@ -12,34 +13,84 @@ type Item = {
   created_at: string;
 };
 
-function Badge({ children, tone = "neutral" }: { children: React.ReactNode; tone?: "neutral"|"green"|"red"|"amber" }) {
+function Badge({
+  children,
+  tone = "neutral",
+}: {
+  children: React.ReactNode;
+  tone?: "neutral" | "green" | "red" | "amber";
+}) {
   const cls =
-    tone === "green" ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-    : tone === "red" ? "bg-rose-50 text-rose-700 ring-rose-200"
-    : tone === "amber" ? "bg-amber-50 text-amber-800 ring-amber-200"
-    : "bg-slate-50 text-slate-700 ring-slate-200";
-  return <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${cls}`}>{children}</span>;
+    tone === "green"
+      ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+      : tone === "red"
+      ? "bg-rose-50 text-rose-700 ring-rose-200"
+      : tone === "amber"
+      ? "bg-amber-50 text-amber-800 ring-amber-200"
+      : "bg-slate-50 text-slate-700 ring-slate-200";
+  return (
+    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${cls}`}>
+      {children}
+    </span>
+  );
 }
 
 export default function Governance() {
-  const [token, setToken] = useState("");
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
+  const [role, setRole] = useState<string | null>(null);
+
   const [items, setItems] = useState<Item[]>([]);
   const [selected, setSelected] = useState<Item | null>(null);
+
   const [comment, setComment] = useState("");
+  const [auditFile, setAuditFile] = useState<File | null>(null);
+  const [auditRes, setAuditRes] = useState<any>(null);
+
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
 
-  const [auditFile, setAuditFile] = useState<File | null>(null);
-  const [auditRes, setAuditRes] = useState<any>(null);
+  // Cuando cambia sesión: limpia estado y trae role desde backend
+  async function onSession(token: string | null, userEmail: string | null) {
+    setAccessToken(token);
+    setEmail(userEmail);
+    setRole(null);
+
+    setItems([]);
+    setSelected(null);
+    setAuditRes(null);
+    setComment("");
+    setAuditFile(null);
+    setErr("");
+    setMsg("");
+
+    if (token) {
+      try {
+        const r = await fetch(`${API_BASE}/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (r.ok) {
+          const data = await r.json();
+          setRole(data.role);
+        }
+      } catch {
+        // ignore (MVP)
+      }
+    }
+  }
 
   async function loadInbox() {
-    setErr(""); setMsg(""); setLoading(true);
+    if (!accessToken) return;
+    setErr("");
+    setMsg("");
+    setLoading(true);
     try {
-      const data = await inbox(token);
-      setItems(data.items || []);
-      if (!selected && data.items?.length) setSelected(data.items[0]);
-    } catch (e:any) {
+      const data = await inbox(accessToken);
+      const list = data.items || [];
+      setItems(list);
+      setSelected((prev) => prev ?? list[0] ?? null);
+    } catch (e: any) {
       setErr(String(e?.message ?? e));
     } finally {
       setLoading(false);
@@ -47,10 +98,9 @@ export default function Governance() {
   }
 
   useEffect(() => {
-    setItems([]);
-    setSelected(null);
-    setAuditRes(null);
-  }, [token]);
+    // si logueas, puedes autoload inbox si quieres:
+    // if (accessToken) loadInbox();
+  }, [accessToken]);
 
   const statusBadge = useMemo(() => {
     const s = selected?.status;
@@ -61,13 +111,13 @@ export default function Governance() {
   }, [selected]);
 
   async function approve() {
-    if (!selected) return;
+    if (!accessToken || !selected) return;
     setErr(""); setMsg(""); setLoading(true);
     try {
-      await approveContent(token, selected.id, comment || undefined);
+      await approveContent(accessToken, selected.id, comment || undefined);
       setMsg("Aprobado.");
       await loadInbox();
-    } catch (e:any) {
+    } catch (e: any) {
       setErr(String(e?.message ?? e));
     } finally {
       setLoading(false);
@@ -75,13 +125,13 @@ export default function Governance() {
   }
 
   async function reject() {
-    if (!selected) return;
+    if (!accessToken || !selected) return;
     setErr(""); setMsg(""); setLoading(true);
     try {
-      await rejectContent(token, selected.id, comment || undefined);
+      await rejectContent(accessToken, selected.id, comment || undefined);
       setMsg("Rechazado.");
       await loadInbox();
-    } catch (e:any) {
+    } catch (e: any) {
       setErr(String(e?.message ?? e));
     } finally {
       setLoading(false);
@@ -89,19 +139,21 @@ export default function Governance() {
   }
 
   async function runAudit() {
-    if (!selected || !auditFile) return;
+    if (!accessToken || !selected || !auditFile) return;
     setErr(""); setMsg(""); setLoading(true);
     setAuditRes(null);
     try {
-      const r = await auditImage(token, selected.id, auditFile);
+      const r = await auditImage(accessToken, selected.id, auditFile);
       setAuditRes(r);
       setMsg(r.verdict === "CHECK" ? "✅ CHECK: cumple manual" : "❌ FAIL: requiere correcciones");
-    } catch (e:any) {
+    } catch (e: any) {
       setErr(String(e?.message ?? e));
     } finally {
       setLoading(false);
     }
   }
+
+  const disabledByAuth = !accessToken;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-fuchsia-50">
@@ -115,26 +167,26 @@ export default function Governance() {
           </div>
         </div>
 
-        <div className="rounded-3xl bg-white/80 backdrop-blur border border-slate-200 shadow-sm ring-1 ring-indigo-100 p-5">
-          <div className="text-sm font-medium text-slate-700">Supabase Access Token</div>
-          <input
-            className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            placeholder="Pega aquí el JWT (access_token) del usuario (Creator/Approver A/B)"
-          />
-          <div className="mt-3 flex gap-2">
-            <button className="h-11 rounded-xl bg-indigo-600 text-white font-semibold px-4 disabled:opacity-60" disabled={!token || loading} onClick={loadInbox}>
-              {loading ? "Cargando..." : "Cargar inbox"}
-            </button>
-            <button className="h-11 rounded-xl bg-white border border-slate-200 px-4 font-semibold" onClick={() => { setItems([]); setSelected(null); setMsg(""); setErr(""); setAuditRes(null); }}>
-              Limpiar
-            </button>
-          </div>
+        {/* Auth */}
+        <AuthPanel onSession={onSession} />
 
-          {err && <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{err}</div>}
-          {msg && <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">{msg}</div>}
+        {/* Session info */}
+        <div className="rounded-3xl bg-white/80 backdrop-blur border border-slate-200 shadow-sm ring-1 ring-indigo-100 p-5 flex items-center justify-between">
+          <div className="text-sm text-slate-700">
+            <div><b>Email:</b> {email ?? "—"}</div>
+            <div><b>Role:</b> {role ?? "—"} (backend)</div>
+          </div>
+          <button
+            className="h-11 rounded-xl bg-indigo-600 text-white font-semibold px-4 disabled:opacity-60"
+            disabled={disabledByAuth || loading}
+            onClick={loadInbox}
+          >
+            {loading ? "Cargando..." : "Cargar inbox"}
+          </button>
         </div>
+
+        {err && <div className="rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{err}</div>}
+        {msg && <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">{msg}</div>}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left list */}
@@ -149,7 +201,10 @@ export default function Governance() {
                 <button
                   key={it.id}
                   onClick={() => { setSelected(it); setAuditRes(null); setComment(""); }}
-                  className={`w-full text-left rounded-2xl border p-3 ${selected?.id === it.id ? "border-indigo-300 bg-indigo-50" : "border-slate-200 bg-white"}`}
+                  className={`w-full text-left rounded-2xl border p-3 ${
+                    selected?.id === it.id ? "border-indigo-300 bg-indigo-50" : "border-slate-200 bg-white"
+                  }`}
+                  disabled={disabledByAuth}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="text-sm font-semibold text-slate-900">{it.type}</div>
@@ -159,7 +214,11 @@ export default function Governance() {
                   <div className="mt-2 text-sm text-slate-700 line-clamp-2">{it.input_brief}</div>
                 </button>
               ))}
-              {items.length === 0 && <div className="text-sm text-slate-600">Sin items (¿hay piezas PENDING?)</div>}
+              {items.length === 0 && (
+                <div className="text-sm text-slate-600">
+                  {disabledByAuth ? "Inicia sesión para ver el inbox." : "Sin items (¿hay piezas PENDING?)"}
+                </div>
+              )}
             </div>
           </div>
 
@@ -171,7 +230,9 @@ export default function Governance() {
             </div>
 
             {!selected ? (
-              <div className="mt-3 text-sm text-slate-600">Selecciona un item del inbox.</div>
+              <div className="mt-3 text-sm text-slate-600">
+                {disabledByAuth ? "Inicia sesión primero." : "Selecciona un item del inbox."}
+              </div>
             ) : (
               <div className="mt-3 space-y-4">
                 <div className="text-xs text-slate-500 font-mono break-all">content_id: {selected.id}</div>
@@ -185,43 +246,70 @@ export default function Governance() {
 
                 <div>
                   <div className="text-sm font-medium text-slate-700">Comentario</div>
-                  <textarea className="mt-1 min-h-[84px] w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"
-                    value={comment} onChange={(e)=>setComment(e.target.value)} />
+                  <textarea
+                    className="mt-1 min-h-[84px] w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    disabled={disabledByAuth}
+                  />
                 </div>
 
                 <div className="flex gap-2">
-                  <button className="h-11 rounded-xl bg-emerald-600 text-white font-semibold px-4 disabled:opacity-60" disabled={loading} onClick={approve}>
+                  <button
+                    className="h-11 rounded-xl bg-emerald-600 text-white font-semibold px-4 disabled:opacity-60"
+                    disabled={disabledByAuth || loading}
+                    onClick={approve}
+                  >
                     Aprobar
                   </button>
-                  <button className="h-11 rounded-xl bg-rose-600 text-white font-semibold px-4 disabled:opacity-60" disabled={loading} onClick={reject}>
+                  <button
+                    className="h-11 rounded-xl bg-rose-600 text-white font-semibold px-4 disabled:opacity-60"
+                    disabled={disabledByAuth || loading}
+                    onClick={reject}
+                  >
                     Rechazar
                   </button>
                 </div>
 
-                {/* Audit only meaningful for Approver B; backend will enforce */}
+                {/* Audit */}
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
                   <div className="flex items-center justify-between">
-                    <div className="text-sm font-semibold text-slate-900">Auditoría Multimodal (Approver B)</div>
+                    <div className="text-sm font-semibold text-slate-900">Auditoría Multimodal (solo Approver B)</div>
                     {auditRes?.verdict && <Badge tone={auditRes.verdict === "CHECK" ? "green" : "red"}>{auditRes.verdict}</Badge>}
                   </div>
 
-                  <input className="mt-3 block w-full text-sm" type="file" accept="image/*" onChange={(e)=>setAuditFile(e.target.files?.[0] ?? null)} />
-                  <button className="mt-3 h-11 w-full rounded-xl bg-indigo-600 text-white font-semibold disabled:opacity-60" disabled={loading || !auditFile} onClick={runAudit}>
+                  <input
+                    className="mt-3 block w-full text-sm"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setAuditFile(e.target.files?.[0] ?? null)}
+                    disabled={disabledByAuth}
+                  />
+
+                  <button
+                    className="mt-3 h-11 w-full rounded-xl bg-indigo-600 text-white font-semibold disabled:opacity-60"
+                    disabled={disabledByAuth || loading || !auditFile}
+                    onClick={runAudit}
+                  >
                     {loading ? "Auditando..." : "Subir y Auditar"}
                   </button>
 
                   {auditRes?.report && (
                     <div className="mt-4 space-y-3">
-                      <div className="text-xs text-slate-500">image_url (signed):</div>
-                      <a className="text-xs text-indigo-700 underline break-all" href={auditRes.image_url} target="_blank" rel="noreferrer">
-                        {auditRes.image_url}
-                      </a>
+                      {auditRes.image_url && (
+                        <>
+                          <div className="text-xs text-slate-500">image_url (signed):</div>
+                          <a className="text-xs text-indigo-700 underline break-all" href={auditRes.image_url} target="_blank" rel="noreferrer">
+                            {auditRes.image_url}
+                          </a>
+                        </>
+                      )}
 
                       {Array.isArray(auditRes.report.violations) && auditRes.report.violations.length > 0 && (
                         <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3">
                           <div className="text-sm font-semibold text-rose-900">Violaciones</div>
                           <ul className="mt-2 space-y-2">
-                            {auditRes.report.violations.map((v:any, idx:number)=>(
+                            {auditRes.report.violations.map((v: any, idx: number) => (
                               <li key={idx} className="text-sm text-rose-900">
                                 <div><b>Regla:</b> {v.rule}</div>
                                 <div><b>Evidencia:</b> {v.evidence}</div>
@@ -236,20 +324,20 @@ export default function Governance() {
                         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
                           <div className="text-sm font-semibold text-emerald-900">Notas</div>
                           <ul className="mt-2 space-y-1 text-sm text-emerald-900">
-                            {auditRes.report.notes.map((n:string, idx:number)=> <li key={idx}>• {n}</li>)}
+                            {auditRes.report.notes.map((n: string, idx: number) => <li key={idx}>• {n}</li>)}
                           </ul>
                         </div>
                       )}
                     </div>
                   )}
                 </div>
+
+                <div className="text-xs text-slate-500">
+                  Si no eres Approver B, el backend devolverá 403 al intentar auditar imagen.
+                </div>
               </div>
             )}
           </div>
-        </div>
-
-        <div className="text-xs text-slate-500">
-          Nota: el backend aplica RBAC. Si pegas token de Approver B podrás auditar; si no, recibes 403.
         </div>
       </div>
     </div>
