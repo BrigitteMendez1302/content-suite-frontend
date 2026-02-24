@@ -19,3 +19,41 @@ export async function createManual(brandId: string, body: any) {
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
+
+export async function inbox(token: string) {
+  const r = await fetch(`${API_BASE}/inbox`, { headers: { Authorization: `Bearer ${token}` }});
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function approveContent(token: string, id: string, comment?: string) {
+  const r = await fetch(`${API_BASE}/content/${id}/approve`, {
+    method: "POST",
+    headers: { "Content-Type":"application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ comment }),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function rejectContent(token: string, id: string, comment?: string) {
+  const r = await fetch(`${API_BASE}/content/${id}/reject`, {
+    method: "POST",
+    headers: { "Content-Type":"application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ comment }),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function auditImage(token: string, id: string, file: File) {
+  const fd = new FormData();
+  fd.append("file", file);
+  const r = await fetch(`${API_BASE}/content/${id}/audit-image`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: fd,
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
