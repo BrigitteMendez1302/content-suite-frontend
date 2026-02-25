@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import AuthPanel from "../components/AuthPanel";
 import { API_BASE, inbox, approveContent, rejectContent, auditImage } from "../api";
+import { auditBrandImage } from "../api";
 
 type Item = {
   id: string;
@@ -43,6 +44,8 @@ export default function Governance() {
   const [items, setItems] = useState<Item[]>([]);
   const [selected, setSelected] = useState<Item | null>(null);
 
+  const [selectedId, setSelectedId] = useState<string>(() => localStorage.getItem("gov_selected_id") || "");
+
   const [comment, setComment] = useState("");
   const [auditFile, setAuditFile] = useState<File | null>(null);
   const [auditRes, setAuditRes] = useState<any>(null);
@@ -50,6 +53,14 @@ export default function Governance() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
+
+  const [brandAuditBrandId, setBrandAuditBrandId] = useState("");
+  const [brandAuditFile, setBrandAuditFile] = useState<File | null>(null);
+  const [brandAuditRes, setBrandAuditRes] = useState<any>(null);
+
+  useEffect(() => {
+    localStorage.setItem("gov_selected_id", selectedId);
+  }, [selectedId]);
 
   // Cuando cambia sesión: limpia estado y trae role desde backend
   async function onSession(token: string | null, userEmail: string | null) {
@@ -89,7 +100,9 @@ export default function Governance() {
       const data = await inbox(accessToken);
       const list = data.items || [];
       setItems(list);
-      setSelected((prev) => prev ?? list[0] ?? null);
+
+      const found = selectedId ? list.find((x: Item) => x.id === selectedId) : null;
+      setSelected(found ?? list[0] ?? null);
     } catch (e: any) {
       setErr(String(e?.message ?? e));
     } finally {
@@ -111,10 +124,12 @@ export default function Governance() {
   }, [selected]);
 
   async function approve() {
+    
     if (!accessToken || !selected) return;
     setErr(""); setMsg(""); setLoading(true);
     try {
       await approveContent(accessToken, selected.id, comment || undefined);
+      setSelected(null);
       setMsg("Aprobado.");
       await loadInbox();
     } catch (e: any) {
@@ -129,6 +144,7 @@ export default function Governance() {
     setErr(""); setMsg(""); setLoading(true);
     try {
       await rejectContent(accessToken, selected.id, comment || undefined);
+      setSelected(null);
       setMsg("Rechazado.");
       await loadInbox();
     } catch (e: any) {
@@ -147,6 +163,21 @@ export default function Governance() {
       setAuditRes(r);
       setMsg(r.verdict === "CHECK" ? "✅ CHECK: cumple manual" : "❌ FAIL: requiere correcciones");
     } catch (e: any) {
+      setErr(String(e?.message ?? e));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function runBrandAudit() {
+    if (!accessToken || !brandAuditBrandId || !brandAuditFile) return;
+    setErr(""); setMsg(""); setLoading(true);
+    setBrandAuditRes(null);
+    try {
+      const r = await auditBrandImage(accessToken, brandAuditBrandId, brandAuditFile);
+      setBrandAuditRes(r);
+      setMsg(r.verdict === "CHECK" ? "✅ CHECK (por marca)" : "❌ FAIL (por marca)");
+    } catch (e:any) {
       setErr(String(e?.message ?? e));
     } finally {
       setLoading(false);
@@ -200,7 +231,12 @@ export default function Governance() {
               {items.map((it) => (
                 <button
                   key={it.id}
-                  onClick={() => { setSelected(it); setAuditRes(null); setComment(""); }}
+                  onClick={() => {
+                    setSelected(it);
+                    setSelectedId(it.id);
+                    setAuditRes(null);
+                    setComment("");
+                  }}
                   className={`w-full text-left rounded-2xl border p-3 ${
                     selected?.id === it.id ? "border-indigo-300 bg-indigo-50" : "border-slate-200 bg-white"
                   }`}
@@ -339,6 +375,11 @@ export default function Governance() {
             )}
           </div>
         </div>
+        {role === "approver_b" && (
+          <div className="rounded-3xl bg-white/80 backdrop-blur border border-slate-200 shadow-sm ring-1 ring-indigo-100 p-5">
+            {/* ... tu bloque Auditar por marca ... */}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -57,3 +57,16 @@ export async function auditImage(token: string, id: string, file: File) {
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
+
+export async function auditBrandImage(token: string, brandId: string, file: File) {
+  const fd = new FormData();
+  fd.append("file", file);
+
+  const r = await fetch(`${API_BASE}/brands/${brandId}/audit-image`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: fd,
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}

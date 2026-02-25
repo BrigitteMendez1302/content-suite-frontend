@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import BrandDNA from "./pages/BrandDNA";
 import CreativeEngine from "./pages/CreativeEngine";
 import Governance from "./pages/Governance";
@@ -30,7 +30,8 @@ function NavButton({
 }
 
 export default function App() {
-  const [page, setPage] = useState<Page>("brand");
+  const [page, setPage] = useState<Page>(() => (localStorage.getItem("page") as Page) || "brand");
+  useEffect(() => localStorage.setItem("page", page), [page]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-fuchsia-50">
