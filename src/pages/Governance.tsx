@@ -228,10 +228,14 @@ export default function Governance() {
           </div>
           <button
             className="h-11 rounded-xl bg-indigo-600 text-white font-semibold px-4 disabled:opacity-60"
-            disabled={disabledByAuth || loading}
+            disabled={!accessToken || loading}
             onClick={loadInbox}
           >
-            {loading ? "Cargando..." : "Cargar inbox"}
+            {loading
+              ? "Cargando..."
+              : role === "creator"
+                ? "Cargar mis piezas"
+                : "Cargar inbox (PENDING)"}
           </button>
         </div>
 
@@ -299,93 +303,99 @@ export default function Governance() {
                   </div>
                 </div>
 
-                <div>
-                  <div className="text-sm font-medium text-slate-700">Comentario</div>
-                  <textarea
-                    className="mt-1 min-h-[84px] w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    disabled={disabledByAuth}
-                  />
-                </div>
+                {role !== "creator" && (
+                  <div>
+                    <div className="text-sm font-medium text-slate-700">Comentario</div>
+                    <textarea
+                      className="mt-1 min-h-[84px] w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      disabled={!accessToken}
+                    />
+                  </div>
+                )}
 
-                <div className="flex gap-2">
-                  <button
-                    className="h-11 rounded-xl bg-emerald-600 text-white font-semibold px-4 disabled:opacity-60"
-                    disabled={disabledByAuth || loading}
-                    onClick={approve}
-                  >
-                    Aprobar
-                  </button>
-                  <button
-                    className="h-11 rounded-xl bg-rose-600 text-white font-semibold px-4 disabled:opacity-60"
-                    disabled={disabledByAuth || loading}
-                    onClick={reject}
-                  >
-                    Rechazar
-                  </button>
-                </div>
+                {role !== "creator" && (
+                  <div className="flex gap-2">
+                    <button
+                      className="h-11 rounded-xl bg-emerald-600 text-white font-semibold px-4 disabled:opacity-60"
+                      disabled={!accessToken || loading}
+                      onClick={approve}
+                    >
+                      Aprobar
+                    </button>
+                    <button
+                      className="h-11 rounded-xl bg-rose-600 text-white font-semibold px-4 disabled:opacity-60"
+                      disabled={!accessToken || loading}
+                      onClick={reject}
+                    >
+                      Rechazar
+                    </button>
+                  </div>
+                )}
 
                 {/* Audit */}
-                <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-semibold text-slate-900">Auditoría Multimodal (solo Approver B)</div>
-                    {auditRes?.verdict && <Badge tone={auditRes.verdict === "CHECK" ? "green" : "red"}>{auditRes.verdict}</Badge>}
-                  </div>
-
-                  <input
-                    className="mt-3 block w-full text-sm"
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setAuditFile(e.target.files?.[0] ?? null)}
-                    disabled={disabledByAuth}
-                  />
-
-                  <button
-                    className="mt-3 h-11 w-full rounded-xl bg-indigo-600 text-white font-semibold disabled:opacity-60"
-                    disabled={disabledByAuth || loading || !auditFile}
-                    onClick={runAudit}
-                  >
-                    {loading ? "Auditando..." : "Subir y Auditar"}
-                  </button>
-
-                  {auditRes?.report && (
-                    <div className="mt-4 space-y-3">
-                      {auditRes.image_url && (
-                        <>
-                          <div className="text-xs text-slate-500">image_url (signed):</div>
-                          <a className="text-xs text-indigo-700 underline break-all" href={auditRes.image_url} target="_blank" rel="noreferrer">
-                            {auditRes.image_url}
-                          </a>
-                        </>
-                      )}
-
-                      {Array.isArray(auditRes.report.violations) && auditRes.report.violations.length > 0 && (
-                        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3">
-                          <div className="text-sm font-semibold text-rose-900">Violaciones</div>
-                          <ul className="mt-2 space-y-2">
-                            {auditRes.report.violations.map((v: any, idx: number) => (
-                              <li key={idx} className="text-sm text-rose-900">
-                                <div><b>Regla:</b> {v.rule}</div>
-                                <div><b>Evidencia:</b> {v.evidence}</div>
-                                <div><b>Fix:</b> {v.fix}</div>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {Array.isArray(auditRes.report.notes) && auditRes.report.notes.length > 0 && (
-                        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
-                          <div className="text-sm font-semibold text-emerald-900">Notas</div>
-                          <ul className="mt-2 space-y-1 text-sm text-emerald-900">
-                            {auditRes.report.notes.map((n: string, idx: number) => <li key={idx}>• {n}</li>)}
-                          </ul>
-                        </div>
-                      )}
+                {role === "approver_b" && (
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-semibold text-slate-900">Auditoría Multimodal (solo Approver B)</div>
+                      {auditRes?.verdict && <Badge tone={auditRes.verdict === "CHECK" ? "green" : "red"}>{auditRes.verdict}</Badge>}
                     </div>
-                  )}
-                </div>
+
+                    <input
+                      className="mt-3 block w-full text-sm"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setAuditFile(e.target.files?.[0] ?? null)}
+                      disabled={disabledByAuth}
+                    />
+
+                    <button
+                      className="mt-3 h-11 w-full rounded-xl bg-indigo-600 text-white font-semibold disabled:opacity-60"
+                      disabled={disabledByAuth || loading || !auditFile}
+                      onClick={runAudit}
+                    >
+                      {loading ? "Auditando..." : "Subir y Auditar"}
+                    </button>
+
+                    {auditRes?.report && (
+                      <div className="mt-4 space-y-3">
+                        {auditRes.image_url && (
+                          <>
+                            <div className="text-xs text-slate-500">image_url (signed):</div>
+                            <a className="text-xs text-indigo-700 underline break-all" href={auditRes.image_url} target="_blank" rel="noreferrer">
+                              {auditRes.image_url}
+                            </a>
+                          </>
+                        )}
+
+                        {Array.isArray(auditRes.report.violations) && auditRes.report.violations.length > 0 && (
+                          <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3">
+                            <div className="text-sm font-semibold text-rose-900">Violaciones</div>
+                            <ul className="mt-2 space-y-2">
+                              {auditRes.report.violations.map((v: any, idx: number) => (
+                                <li key={idx} className="text-sm text-rose-900">
+                                  <div><b>Regla:</b> {v.rule}</div>
+                                  <div><b>Evidencia:</b> {v.evidence}</div>
+                                  <div><b>Fix:</b> {v.fix}</div>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {Array.isArray(auditRes.report.notes) && auditRes.report.notes.length > 0 && (
+                          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
+                            <div className="text-sm font-semibold text-emerald-900">Notas</div>
+                            <ul className="mt-2 space-y-1 text-sm text-emerald-900">
+                              {auditRes.report.notes.map((n: string, idx: number) => <li key={idx}>• {n}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="text-xs text-slate-500">
                   Si no eres Approver B, el backend devolverá 403 al intentar auditar imagen.
