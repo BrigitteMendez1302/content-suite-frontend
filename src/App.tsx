@@ -8,6 +8,7 @@ import CreativeEngine from "./pages/CreativeEngine";
 import Governance from "./pages/Governance";
 
 type Page = "brand" | "engine" | "gov";
+const [accessToken, setAccessToken] = useState<string | null>(null);
 
 function NavButton({ active, onClick, children }: any) {
   return (
@@ -31,6 +32,7 @@ export default function App() {
     (async () => {
       const { data } = await supabase.auth.getSession();
       const token = data.session?.access_token;
+      setAccessToken(token ?? null);
       if (!token) {
         setBooting(false);
         return;

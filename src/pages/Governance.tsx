@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from "react";
-import AuthPanel from "../components/AuthPanel";
 import { API_BASE, inbox, approveContent, rejectContent, auditImage } from "../api";
 import { auditBrandImage } from "../api";
 import { supabase } from "../supabaseClient";
@@ -37,10 +36,9 @@ function Badge({
   );
 }
 
-export default function Governance() {
-  const [accessToken, setAccessToken] = useState<string | null>(null);
+export default function Governance({ accessToken, role }: { accessToken: string | null; role: string | null }) {
+
   const [email, setEmail] = useState<string | null>(null);
-  const [role, setRole] = useState<string | null>(null);
 
   const [items, setItems] = useState<Item[]>([]);
   const [selected, setSelected] = useState<Item | null>(null);
@@ -85,15 +83,11 @@ export default function Governance() {
 
   useEffect(() => {
     (async () => {
-      if (!selected?.brand_manual_id) return setManual(null);
+      if (!accessToken || !selected?.brand_manual_id) return setManual(null);
       setManualLoading(true);
       try {
-        const { data } = await supabase.auth.getSession();
-        const token = data.session?.access_token;
-        if (!token) return;
-
         const r = await fetch(`${API_BASE}/manuals/${selected.brand_manual_id}`, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${accessToken}` },
         });
         if (!r.ok) throw new Error(await r.text());
         const data2 = await r.json();
@@ -104,7 +98,7 @@ export default function Governance() {
         setManualLoading(false);
       }
     })();
-  }, [selected?.brand_manual_id]);
+  }, [accessToken, selected?.brand_manual_id]);
 
   async function loadInbox() {
     if (!accessToken) return;
@@ -216,7 +210,6 @@ export default function Governance() {
         {/* Session info */}
         <div className="rounded-3xl bg-white/80 backdrop-blur border border-slate-200 shadow-sm ring-1 ring-indigo-100 p-5 flex items-center justify-between">
           <div className="text-sm text-slate-700">
-            <div><b>Email:</b> {email ?? "—"}</div>
             <div><b>Role:</b> {role ?? "—"} (backend)</div>
           </div>
           <button
