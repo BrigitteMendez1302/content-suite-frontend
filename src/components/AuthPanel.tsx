@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
+import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 
 export default function AuthPanel({
   onSession,
@@ -14,29 +15,33 @@ export default function AuthPanel({
 
   useEffect(() => {
     // initial session
-    supabase.auth.getSession().then(({ data }) => {
-      const s = data.session;
-      if (s) {
-        setSessionEmail(s.user.email ?? null);
-        onSession(s.access_token, s.user.email ?? null);
-      }
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data }: { data: { session: Session | null } }) => {
+        const s = data.session;
+        if (s) {
+          setSessionEmail(s.user.email ?? null);
+          onSession(s.access_token, s.user.email ?? null);
+        }
+      });
 
     // listen changes
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
-      if (s) {
-        setSessionEmail(s.user.email ?? null);
-        onSession(s.access_token, s.user.email ?? null);
-      } else {
-        setSessionEmail(null);
-        onSession(null, null);
+    const { data: sub } = supabase.auth.onAuthStateChange(
+      (_event: AuthChangeEvent, s: Session | null) => {
+        if (s) {
+          setSessionEmail(s.user.email ?? null);
+          onSession(s.access_token, s.user.email ?? null);
+        } else {
+          setSessionEmail(null);
+          onSession(null, null);
+        }
       }
-    });
+    );
 
     return () => {
       sub.subscription.unsubscribe();
     };
-  }, []);
+  }, [onSession]);
 
   async function signIn() {
     setErr("");
@@ -46,8 +51,9 @@ export default function AuthPanel({
       if (error) throw error;
       setSessionEmail(data.user?.email ?? null);
       onSession(data.session?.access_token ?? null, data.user?.email ?? null);
-    } catch (e: any) {
-      setErr(e?.message ?? String(e));
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setErr(msg);
     } finally {
       setLoading(false);
     }
@@ -60,8 +66,9 @@ export default function AuthPanel({
       await supabase.auth.signOut();
       setSessionEmail(null);
       onSession(null, null);
-    } catch (e: any) {
-      setErr(e?.message ?? String(e));
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setErr(msg);
     } finally {
       setLoading(false);
     }
@@ -82,30 +89,47 @@ export default function AuthPanel({
         )}
       </div>
 
-      {err && <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{err}</div>}
+      {err && (
+        <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          {err}
+        </div>
+      )}
 
       {!sessionEmail ? (
         <div className="mt-4 space-y-3">
           <div>
             <div className="text-sm font-medium text-slate-700">Email</div>
-            <input className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
-              value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input
+              className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
           </div>
           <div>
             <div className="text-sm font-medium text-slate-700">Password</div>
-            <input type="password" className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
-              value={password} onChange={(e) => setPassword(e.target.value)} />
+            <input
+              type="password"
+              className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
           </div>
 
-          <button disabled={loading} onClick={signIn}
-            className="h-11 w-full rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 disabled:opacity-60">
+          <button
+            disabled={loading}
+            onClick={signIn}
+            className="h-11 w-full rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 disabled:opacity-60"
+          >
             {loading ? "Entrando..." : "Entrar"}
           </button>
         </div>
       ) : (
         <div className="mt-4">
-          <button disabled={loading} onClick={signOut}
-            className="h-11 w-full rounded-xl bg-white border border-slate-200 font-semibold hover:bg-slate-50 disabled:opacity-60">
+          <button
+            disabled={loading}
+            onClick={signOut}
+            className="h-11 w-full rounded-xl bg-white border border-slate-200 font-semibold hover:bg-slate-50 disabled:opacity-60"
+          >
             {loading ? "Saliendo..." : "Cerrar sesión"}
           </button>
         </div>

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import AuthPanel from "../components/AuthPanel";
 import { API_BASE, inbox, approveContent, rejectContent, auditImage } from "../api";
 import { auditBrandImage } from "../api";
+import { supabase } from "../supabaseClient";
 
 type Item = {
   id: string;
@@ -58,6 +59,8 @@ export default function Governance() {
   const [brandAuditBrandId, setBrandAuditBrandId] = useState("");
   const [brandAuditFile, setBrandAuditFile] = useState<File | null>(null);
   const [brandAuditRes, setBrandAuditRes] = useState<any>(null);
+  const [manual, setManual] = useState<any>(null);
+  const [manualLoading, setManualLoading] = useState(false);
 
   useEffect(() => {
     // solo cargar marcas cuando eres approver_b y estás logueada
@@ -80,6 +83,29 @@ export default function Governance() {
   useEffect(() => {
     localStorage.setItem("gov_selected_id", selectedId);
   }, [selectedId]);
+
+  useEffect(() => {
+    (async () => {
+      if (!selected?.brand_manual_id) return setManual(null);
+      setManualLoading(true);
+      try {
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        if (!token) return;
+
+        const r = await fetch(`${API_BASE}/manuals/${selected.brand_manual_id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!r.ok) throw new Error(await r.text());
+        const data2 = await r.json();
+        setManual(data2.manual_json);
+      } catch {
+        setManual(null);
+      } finally {
+        setManualLoading(false);
+      }
+    })();
+  }, [selected?.brand_manual_id]);
 
   // Cuando cambia sesión: limpia estado y trae role desde backend
   async function onSession(token: string | null, userEmail: string | null) {
@@ -301,6 +327,92 @@ export default function Governance() {
                   <div className="mt-2 max-h-[240px] overflow-auto rounded-xl border border-slate-100 bg-slate-50 p-3">
                     <p className="whitespace-pre-wrap text-sm leading-6 text-slate-900">{selected.output_text}</p>
                   </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-semibold text-slate-900">Manual de marca (resumen)</div>
+                    {manualLoading && <span className="text-xs text-slate-500">cargando...</span>}
+                  </div>
+
+                  {!manual && !manualLoading && (
+                    <div className="mt-2 text-sm text-slate-600">No se pudo cargar el manual.</div>
+                  )}
+
+                  {manual && (
+                    <div className="mt-3 space-y-4 text-sm text-slate-800">
+                      <div>
+                        <div className="text-xs text-slate-500">Tono</div>
+                        <div className="font-medium">{manual?.tone?.description ?? "—"}</div>
+                        <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                            <div className="text-xs font-semibold">✅ Dos</div>
+                            <ul className="mt-2 space-y-1">
+                              {(manual?.tone?.dos ?? []).slice(0, 6).map((x: string, i: number) => <li key={i}>• {x}</li>)}
+                            </ul>
+                          </div>
+                          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                            <div className="text-xs font-semibold">⛔ Don’ts</div>
+                            <ul className="mt-2 space-y-1">
+                              {(manual?.tone?.donts ?? []).slice(0, 6).map((x: string, i: number) => <li key={i}>• {x}</li>)}
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                          <div className="text-xs font-semibold">Términos preferidos</div>
+                          <ul className="mt-2 space-y-1">
+                            {(manual?.messaging?.preferred_terms ?? []).slice(0, 8).map((x: string, i: number) => <li key={i}>• {x}</li>)}
+                          </ul>
+                        </div>
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                          <div className="text-xs font-semibold">Prohibidos</div>
+                          <ul className="mt-2 space-y-1">
+                            {(manual?.messaging?.forbidden_terms ?? []).slice(0, 8).map((x: string, i: number) => <li key={i}>• {x}</li>)}
+                          </ul>
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <div className="text-xs font-semibold">Guías visuales</div>
+                        <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <div className="text-xs text-slate-500">Colores</div>
+                            <ul className="mt-1 space-y-1">
+                              {(manual?.visual_guidelines?.colors ?? []).slice(0, 8).map((x: string, i: number) => <li key={i}>• {x}</li>)}
+                            </ul>
+                          </div>
+                          <div>
+                            <div className="text-xs text-slate-500">Logo</div>
+                            <ul className="mt-1 space-y-1">
+                              {(manual?.visual_guidelines?.logo_rules ?? []).slice(0, 8).map((x: string, i: number) => <li key={i}>• {x}</li>)}
+                            </ul>
+                          </div>
+                          <div>
+                            <div className="text-xs text-slate-500">Tipografía</div>
+                            <ul className="mt-1 space-y-1">
+                              {(manual?.visual_guidelines?.typography ?? []).slice(0, 8).map((x: string, i: number) => <li key={i}>• {x}</li>)}
+                            </ul>
+                          </div>
+                          <div>
+                            <div className="text-xs text-slate-500">Estilo de imagen</div>
+                            <ul className="mt-1 space-y-1">
+                              {(manual?.visual_guidelines?.image_style ?? []).slice(0, 8).map((x: string, i: number) => <li key={i}>• {x}</li>)}
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <div className="text-xs font-semibold">Checklist de aprobación</div>
+                        <ul className="mt-2 space-y-1">
+                          {(manual?.approval_checklist ?? []).slice(0, 12).map((x: string, i: number) => <li key={i}>• {x}</li>)}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {role !== "creator" && (
