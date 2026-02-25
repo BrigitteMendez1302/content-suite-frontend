@@ -54,9 +54,28 @@ export default function Governance() {
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
 
+  const [brands, setBrands] = useState<Array<{ id: string; name: string }>>([]);
   const [brandAuditBrandId, setBrandAuditBrandId] = useState("");
   const [brandAuditFile, setBrandAuditFile] = useState<File | null>(null);
   const [brandAuditRes, setBrandAuditRes] = useState<any>(null);
+
+  useEffect(() => {
+    // solo cargar marcas cuando eres approver_b y estás logueada
+    if (!accessToken || role !== "approver_b") return;
+
+    (async () => {
+      try {
+        const r = await fetch(`${API_BASE}/brands`);
+        if (!r.ok) return;
+        const data = await r.json();
+        setBrands(data || []);
+        if (data?.length) setBrandAuditBrandId((prev) => prev || data[0].id);
+      } catch {
+        // ignore
+      }
+    })();
+  }, [accessToken, role]);
+
 
   useEffect(() => {
     localStorage.setItem("gov_selected_id", selectedId);
@@ -177,7 +196,7 @@ export default function Governance() {
       const r = await auditBrandImage(accessToken, brandAuditBrandId, brandAuditFile);
       setBrandAuditRes(r);
       setMsg(r.verdict === "CHECK" ? "✅ CHECK (por marca)" : "❌ FAIL (por marca)");
-    } catch (e:any) {
+    } catch (e: any) {
       setErr(String(e?.message ?? e));
     } finally {
       setLoading(false);
@@ -376,8 +395,84 @@ export default function Governance() {
           </div>
         </div>
         {role === "approver_b" && (
-          <div className="rounded-3xl bg-white/80 backdrop-blur border border-slate-200 shadow-sm ring-1 ring-indigo-100 p-5">
-            {/* ... tu bloque Auditar por marca ... */}
+          <div className="mt-6 rounded-3xl bg-white/80 backdrop-blur border border-slate-200 shadow-sm ring-1 ring-indigo-100 p-5">
+            <div className="flex items-center justify-between">
+              <div className="font-semibold text-slate-900">Auditar por marca (sin pieza)</div>
+              {brandAuditRes?.verdict && (
+                <span
+                  className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${
+                    brandAuditRes.verdict === "CHECK"
+                      ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+                      : "bg-rose-50 text-rose-700 ring-rose-200"
+                  }`}
+                >
+                  {brandAuditRes.verdict}
+                </span>
+              )}
+            </div>
+
+            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <div className="text-sm font-medium text-slate-700">Marca</div>
+                <select
+                  className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
+                  value={brandAuditBrandId}
+                  onChange={(e) => setBrandAuditBrandId(e.target.value)}
+                >
+                  {brands.length === 0 && <option value="">No hay marcas</option>}
+                  {brands.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="mt-1 text-xs text-slate-500 font-mono break-all">brand_id: {brandAuditBrandId || "—"}</div>
+              </div>
+
+              <div>
+                <div className="text-sm font-medium text-slate-700">Imagen</div>
+                <input
+                  className="mt-2 block w-full text-sm"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setBrandAuditFile(e.target.files?.[0] ?? null)}
+                />
+              </div>
+            </div>
+
+            <button
+              className="mt-3 h-11 w-full rounded-xl bg-indigo-600 text-white font-semibold disabled:opacity-60"
+              disabled={loading || !accessToken || !brandAuditBrandId || !brandAuditFile}
+              onClick={runBrandAudit}
+            >
+              {loading ? "Auditando..." : "Subir y auditar por marca"}
+            </button>
+
+            {brandAuditRes?.report?.violations?.length > 0 && (
+              <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-3">
+                <div className="text-sm font-semibold text-rose-900">Violaciones</div>
+                <ul className="mt-2 space-y-2">
+                  {brandAuditRes.report.violations.map((v: any, idx: number) => (
+                    <li key={idx} className="text-sm text-rose-900">
+                      <div><b>Regla:</b> {v.rule}</div>
+                      <div><b>Evidencia:</b> {v.evidence}</div>
+                      <div><b>Fix:</b> {v.fix}</div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {brandAuditRes?.report?.notes?.length > 0 && (
+              <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
+                <div className="text-sm font-semibold text-emerald-900">Notas</div>
+                <ul className="mt-2 space-y-1 text-sm text-emerald-900">
+                  {brandAuditRes.report.notes.map((n: string, idx: number) => (
+                    <li key={idx}>• {n}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )}
       </div>
