@@ -63,7 +63,6 @@ export default function Governance() {
   const [manualLoading, setManualLoading] = useState(false);
 
   useEffect(() => {
-    // solo cargar marcas cuando eres approver_b y estás logueada
     if (!accessToken || role !== "approver_b") return;
 
     (async () => {
