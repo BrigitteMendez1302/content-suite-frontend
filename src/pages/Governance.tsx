@@ -437,12 +437,14 @@ export default function Governance({ accessToken, role }: { accessToken: string 
                     {auditRes?.report && (
                       <div className="mt-4 space-y-3">
                         {auditRes.image_url && (
-                          <>
-                            <div className="text-xs text-slate-500">image_url (signed):</div>
-                            <a className="text-xs text-indigo-700 underline break-all" href={auditRes.image_url} target="_blank" rel="noreferrer">
-                              {auditRes.image_url}
-                            </a>
-                          </>
+                          <div className="mt-3">
+                            <div className="text-xs text-slate-500">Preview</div>
+                            <img
+                              src={auditRes.image_url}
+                              alt="Imagen auditada"
+                              className="mt-2 max-h-64 w-full rounded-2xl border border-slate-200 object-contain bg-white"
+                            />
+                          </div>
                         )}
 
                         {Array.isArray(auditRes.report.violations) && auditRes.report.violations.length > 0 && (
