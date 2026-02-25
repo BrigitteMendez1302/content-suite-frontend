@@ -106,35 +106,6 @@ export default function Governance() {
     })();
   }, [selected?.brand_manual_id]);
 
-  // Cuando cambia sesión: limpia estado y trae role desde backend
-  async function onSession(token: string | null, userEmail: string | null) {
-    setAccessToken(token);
-    setEmail(userEmail);
-    setRole(null);
-
-    setItems([]);
-    setSelected(null);
-    setAuditRes(null);
-    setComment("");
-    setAuditFile(null);
-    setErr("");
-    setMsg("");
-
-    if (token) {
-      try {
-        const r = await fetch(`${API_BASE}/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (r.ok) {
-          const data = await r.json();
-          setRole(data.role);
-        }
-      } catch {
-        // ignore (MVP)
-      }
-    }
-  }
-
   async function loadInbox() {
     if (!accessToken) return;
     setErr("");
@@ -241,9 +212,6 @@ export default function Governance() {
             <Badge>Multimodal</Badge>
           </div>
         </div>
-
-        {/* Auth */}
-        <AuthPanel onSession={onSession} />
 
         {/* Session info */}
         <div className="rounded-3xl bg-white/80 backdrop-blur border border-slate-200 shadow-sm ring-1 ring-indigo-100 p-5 flex items-center justify-between">
