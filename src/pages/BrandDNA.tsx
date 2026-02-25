@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { createBrand, createManual } from "../api";
+import { createBrand, createManual, updateVisualRules } from "../api";
 
 function clsx(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(" ");
@@ -83,6 +83,14 @@ export default function BrandDNA() {
   const [error, setError] = useState<string>("");
   const [notice, setNotice] = useState<string>("");
 
+  const [colorsText, setColorsText] = useState("#FFFFFF\n#111827");
+  const [logoRulesText, setLogoRulesText] = useState("Logo en esquina superior izquierda\nNo deformar\nMantener margen/clear space");
+  const [typographyText, setTypographyText] = useState("Sans-serif\nTítulos en 600\nCuerpo regular");
+  const [imageStyleText, setImageStyleText] = useState("Fotografía realista\nFondo limpio\nIluminación suave\nEstilo editorial");
+  const [visualNotes, setVisualNotes] = useState("Reglas visuales definidas por usuario.");
+
+  const toList = (s: string) => s.split("\n").map(x => x.trim()).filter(Boolean);
+
   async function onCreateBrand() {
     setError("");
     setNotice("");
@@ -106,6 +114,7 @@ export default function BrandDNA() {
     setLoadingManual(true);
     setResult(null);
     try {
+      await saveVisualRules();
       const data = await createManual(brandId, {
         brand_name: brandName,
         product,
@@ -119,6 +128,32 @@ export default function BrandDNA() {
       setError(String(e?.message ?? e));
     } finally {
       setLoadingManual(false);
+    }
+  }
+
+  async function saveVisualRules() {
+    if (!brandId) {
+      setError("Primero crea el Brand.");
+      return;
+    }
+
+    setError("");
+    setNotice("");
+
+    try {
+      const payload = {
+        colors: toList(colorsText),
+        logo_rules: toList(logoRulesText),
+        typography: toList(typographyText),
+        image_style: toList(imageStyleText),
+        notes: visualNotes || null,
+      };
+
+      await updateVisualRules(brandId, payload);
+
+      setNotice("Reglas visuales guardadas correctamente.");
+    } catch (e: any) {
+      setError(String(e?.message ?? e));
     }
   }
 
@@ -195,6 +230,35 @@ export default function BrandDNA() {
               <div>
                 <label className="text-sm font-medium text-slate-700">Público</label>
                 <Input value={audience} onChange={(e) => setAudience(e.target.value)} />
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+                <div className="text-sm font-semibold text-slate-900">Visual Rules (User Input)</div>
+
+                <div>
+                  <label className="text-sm font-medium text-slate-700">Colors (1 por línea)</label>
+                  <Textarea value={colorsText} onChange={(e) => setColorsText(e.target.value)} />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-slate-700">Logo rules (1 por línea)</label>
+                  <Textarea value={logoRulesText} onChange={(e) => setLogoRulesText(e.target.value)} />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-slate-700">Typography (1 por línea)</label>
+                  <Textarea value={typographyText} onChange={(e) => setTypographyText(e.target.value)} />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-slate-700">Image style (1 por línea)</label>
+                  <Textarea value={imageStyleText} onChange={(e) => setImageStyleText(e.target.value)} />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-slate-700">Notes (opcional)</label>
+                  <Input value={visualNotes} onChange={(e) => setVisualNotes(e.target.value)} />
+                </div>
               </div>
 
               <div>
