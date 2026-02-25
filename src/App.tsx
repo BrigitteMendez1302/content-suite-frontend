@@ -8,7 +8,6 @@ import CreativeEngine from "./pages/CreativeEngine";
 import Governance from "./pages/Governance";
 
 type Page = "brand" | "engine" | "gov";
-const [accessToken, setAccessToken] = useState<string | null>(null);
 
 function NavButton({ active, onClick, children }: any) {
   return (
@@ -26,6 +25,7 @@ export default function App() {
   const [role, setRole] = useState<string | null>(null);
   const [page, setPage] = useState<Page>("gov");
   const [booting, setBooting] = useState(true);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
 
   // Restore session on refresh
   useEffect(() => {
