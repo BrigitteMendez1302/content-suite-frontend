@@ -179,11 +179,15 @@ export default function Governance({ accessToken, role }: { accessToken: string 
   }
 
   async function runBrandAudit() {
-    if (!accessToken || !brandAuditBrandId || !brandAuditFile) return;
+    if (!brandAuditBrandId || !brandAuditFile) return;
     setErr(""); setMsg(""); setLoading(true);
     setBrandAuditRes(null);
     try {
-      const r = await auditBrandImage(accessToken, brandAuditBrandId, brandAuditFile);
+
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) throw new Error("No session token");
+      const r = await auditBrandImage(token, brandAuditBrandId, brandAuditFile);
       setBrandAuditRes(r);
       setMsg(r.verdict === "CHECK" ? "✅ CHECK (por marca)" : "❌ FAIL (por marca)");
     } catch (e: any) {
