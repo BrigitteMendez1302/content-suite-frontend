@@ -98,7 +98,7 @@ export default function App() {
         <div className="mt-6">
           {page === "brand" && isCreator && <BrandDNA />}
           {page === "engine" && isCreator && <CreativeEngine />}
-          {page === "gov" && <Governance />}
+          {page === "gov" && <Governance accessToken={accessToken} role={role} />}
         </div>
       </div>
     </div>
