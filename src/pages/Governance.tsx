@@ -38,8 +38,6 @@ function Badge({
 
 export default function Governance({ accessToken, role }: { accessToken: string | null; role: string | null }) {
 
-  const [email, setEmail] = useState<string | null>(null);
-
   const [items, setItems] = useState<Item[]>([]);
   const [selected, setSelected] = useState<Item | null>(null);
 
@@ -59,6 +57,35 @@ export default function Governance({ accessToken, role }: { accessToken: string 
   const [brandAuditRes, setBrandAuditRes] = useState<any>(null);
   const [manual, setManual] = useState<any>(null);
   const [manualLoading, setManualLoading] = useState(false);
+  const [auditPreviewUrl, setAuditPreviewUrl] = useState<string | null>(null);
+
+  const [brandManual, setBrandManual] = useState<any>(null);
+  const [brandManualLoading, setBrandManualLoading] = useState(false);
+
+  const [brandAuditPreviewUrl, setBrandAuditPreviewUrl] = useState<string | null>(null);
+
+
+  useEffect(() => {
+    (async () => {
+      if (!accessToken || !brandAuditBrandId) {
+        setBrandManual(null);
+        return;
+      }
+      setBrandManualLoading(true);
+      try {
+        const r = await fetch(`${API_BASE}/brands/${brandAuditBrandId}/manual`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (!r.ok) throw new Error(await r.text());
+        const data = await r.json();
+        setBrandManual(data.manual_json ?? null);
+      } catch {
+        setBrandManual(null);
+      } finally {
+        setBrandManualLoading(false);
+      }
+    })();
+  }, [accessToken, brandAuditBrandId]);
 
   useEffect(() => {
     if (!accessToken || role !== "approver_b") return;
@@ -75,6 +102,12 @@ export default function Governance({ accessToken, role }: { accessToken: string 
       }
     })();
   }, [accessToken, role]);
+
+  useEffect(() => {
+    return () => {
+      if (auditPreviewUrl) URL.revokeObjectURL(auditPreviewUrl);
+    };
+  }, [auditPreviewUrl]);
 
 
   useEffect(() => {
@@ -422,10 +455,25 @@ export default function Governance({ accessToken, role }: { accessToken: string 
                       className="mt-3 block w-full text-sm"
                       type="file"
                       accept="image/*"
-                      onChange={(e) => setAuditFile(e.target.files?.[0] ?? null)}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0] ?? null;
+                        setAuditFile(f);
+                        setAuditRes(null);
+                        if (auditPreviewUrl) URL.revokeObjectURL(auditPreviewUrl);
+                        setAuditPreviewUrl(f ? URL.createObjectURL(f) : null);
+                      }}
                       disabled={disabledByAuth}
                     />
-
+                    {auditPreviewUrl && (
+                      <div className="mt-3">
+                        <div className="text-xs text-slate-500">Preview (local)</div>
+                        <img
+                          src={auditPreviewUrl}
+                          alt="Preview local"
+                          className="mt-2 max-h-64 w-full rounded-2xl border border-slate-200 object-contain bg-white"
+                        />
+                      </div>
+                    )}
                     <button
                       className="mt-3 h-11 w-full rounded-xl bg-indigo-600 text-white font-semibold disabled:opacity-60"
                       disabled={disabledByAuth || loading || !auditFile}
@@ -517,16 +565,101 @@ export default function Governance({ accessToken, role }: { accessToken: string 
                 <div className="mt-1 text-xs text-slate-500 font-mono break-all">brand_id: {brandAuditBrandId || "—"}</div>
               </div>
 
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-semibold text-slate-700">Manual de la marca (leer antes de subir)</div>
+                  {brandManualLoading && <span className="text-xs text-slate-500">cargando...</span>}
+                </div>
+
+                {!brandManualLoading && !brandManual && (
+                  <div className="mt-2 text-xs text-slate-600">
+                    No hay manual disponible para esta marca. Genera el manual en Módulo I.
+                  </div>
+                )}
+
+                {brandManual && (
+                  <div className="mt-3 space-y-3 text-xs text-slate-800">
+                    <div>
+                      <div className="text-slate-500">Tono</div>
+                      <div className="font-medium text-sm">{brandManual?.tone?.description ?? "—"}</div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <div className="text-slate-500">✅ Dos</div>
+                        <ul className="mt-1 space-y-1">
+                          {(brandManual?.tone?.dos ?? []).slice(0, 5).map((x: string, i: number) => <li key={i}>• {x}</li>)}
+                        </ul>
+                      </div>
+                      <div>
+                        <div className="text-slate-500">⛔ Don’ts</div>
+                        <ul className="mt-1 space-y-1">
+                          {(brandManual?.tone?.donts ?? []).slice(0, 5).map((x: string, i: number) => <li key={i}>• {x}</li>)}
+                        </ul>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <div className="text-slate-500">Colores</div>
+                        <ul className="mt-1 space-y-1">
+                          {(brandManual?.visual_guidelines?.colors ?? []).slice(0, 6).map((x: string, i: number) => <li key={i}>• {x}</li>)}
+                        </ul>
+                      </div>
+                      <div>
+                        <div className="text-slate-500">Logo rules</div>
+                        <ul className="mt-1 space-y-1">
+                          {(brandManual?.visual_guidelines?.logo_rules ?? []).slice(0, 4).map((x: string, i: number) => <li key={i}>• {x}</li>)}
+                        </ul>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <div className="text-slate-500">Tipografía</div>
+                        <ul className="mt-1 space-y-1">
+                          {(brandManual?.visual_guidelines?.typography ?? []).slice(0, 4).map((x: string, i: number) => <li key={i}>• {x}</li>)}
+                        </ul>
+                      </div>
+                      <div>
+                        <div className="text-slate-500">Estilo de imagen</div>
+                        <ul className="mt-1 space-y-1">
+                          {(brandManual?.visual_guidelines?.image_style ?? []).slice(0, 4).map((x: string, i: number) => <li key={i}>• {x}</li>)}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div>
                 <div className="text-sm font-medium text-slate-700">Imagen</div>
                 <input
                   className="mt-2 block w-full text-sm"
                   type="file"
                   accept="image/*"
-                  onChange={(e) => setBrandAuditFile(e.target.files?.[0] ?? null)}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] ?? null;
+                    setBrandAuditFile(f);
+                    setBrandAuditRes(null);
+
+                    if (brandAuditPreviewUrl) URL.revokeObjectURL(brandAuditPreviewUrl);
+                    setBrandAuditPreviewUrl(f ? URL.createObjectURL(f) : null);
+                  }}
                 />
               </div>
             </div>
+
+            {brandAuditPreviewUrl && (
+              <div className="mt-3">
+                <div className="text-xs text-slate-500">Preview (local)</div>
+                <img
+                  src={brandAuditPreviewUrl}
+                  alt="Preview local por marca"
+                  className="mt-2 max-h-64 w-full rounded-2xl border border-slate-200 object-contain bg-white"
+                />
+              </div>
+            )}
 
             <button
               className="mt-3 h-11 w-full rounded-xl bg-indigo-600 text-white font-semibold disabled:opacity-60"
