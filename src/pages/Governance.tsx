@@ -153,8 +153,6 @@ export default function Governance({ accessToken, role }: { accessToken: string 
   }
 
   useEffect(() => {
-    // si logueas, puedes autoload inbox si quieres:
-    // if (accessToken) loadInbox();
   }, [accessToken]);
 
   const statusBadge = useMemo(() => {
@@ -484,17 +482,6 @@ export default function Governance({ accessToken, role }: { accessToken: string 
 
                     {auditRes?.report && (
                       <div className="mt-4 space-y-3">
-                        {auditRes.image_url && (
-                          <div className="mt-3">
-                            <div className="text-xs text-slate-500">Preview</div>
-                            <img
-                              src={auditRes.image_url}
-                              alt="Imagen auditada"
-                              className="mt-2 max-h-64 w-full rounded-2xl border border-slate-200 object-contain bg-white"
-                            />
-                          </div>
-                        )}
-
                 
                         {auditRes?.report?.validated_rules_count !== undefined && (
                           <div className="text-xs text-slate-600">
