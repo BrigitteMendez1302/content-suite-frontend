@@ -1,73 +1,95 @@
-# React + TypeScript + Vite
+# Content Suite — Frontend (React)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Frontend del MVP **Content Suite**: UI para crear piezas, ver estado, aprobar/rechazar y auditar imágenes (según rol). Desplegado en **Vercel**.
 
-Currently, two official plugins are available:
+## ✨ Features (MVP)
+- Login con **Supabase Auth**
+- **RBAC UI**
+  - **CREATOR**: crear y ver solo sus piezas
+  - **APPROVER_A**: bandeja de aprobaciones (approve/reject)
+  - **APPROVER_B**: aprobaciones + **auditoría multimodal** (subida de imagen)
+- Flujo de estados: **PENDING → APPROVED / REJECTED**
+- Vista de pieza con:
+  - output generado (texto / prompt)
+  - feedback de aprobación
+  - resultado auditoría (PASS/FAIL + recomendaciones)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🧱 Tech Stack
+- React
+- Supabase JS (Auth)
+- Fetch/Axios hacia backend FastAPI
+- Deploy: **Vercel**
 
-## React Compiler
+## 🚀 Deploy
+- **Vercel** (producción)
+- Variables de entorno configuradas en Vercel (ver sección **Environment Variables**)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## ✅ Requisitos
+- Node 18+
+- Backend corriendo (local o Render)
+- Proyecto Supabase (Auth)
 
-## Expanding the ESLint configuration
+## ⚙️ Setup local
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Frontend: `http://localhost:5173` (o el puerto configurado)
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## 🔐 Environment Variables
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+Crea `.env` (Vite) o configura en Vercel:
+
+### Supabase
+- `VITE_SUPABASE_URL=`
+- `VITE_SUPABASE_ANON_KEY=`
+
+### Backend API
+- `VITE_API_BASE_URL=http://localhost:8000`  
+  *(en prod: URL de Render)*
+
+> Si tu proyecto usa Next.js, cambia a `NEXT_PUBLIC_...`.
+
+## 🧭 Pantallas (sugeridas)
+- `/login`
+- `/creator/new` — crear pieza (description / script / image prompt)
+- `/creator/my-content` — lista de piezas del creador
+- `/approvals` — bandeja de aprobaciones (A y B)
+- `/audit/:contentId` — auditoría de imagen (solo B)
+- `/content/:id` — detalle de pieza (estado + output + feedback)
+
+## 🔁 Flujo de usuario (demo)
+1. **CREATOR** inicia sesión → crea pieza → queda **PENDING**
+2. **APPROVER_A** revisa → **APPROVE/REJECT** con comentario
+3. **APPROVER_B** (opcional) sube imagen → recibe **PASS/FAIL** + corrección
+4. (Opcional) CREATOR ajusta y reenvía (si tu flujo lo soporta)
+
+## 🔌 Integración con backend
+El frontend envía el JWT de Supabase al backend:
+
+- `Authorization: Bearer <access_token>`
+
+Endpoints típicos consumidos:
+- `POST /generate`
+- `GET /content`
+- `POST /content/{id}/approve`
+- `POST /content/{id}/reject`
+- `POST /content/{id}/audit-image`
+
+## ✅ Checklist de verificación rápida
+- [ ] Login funciona y persiste sesión
+- [ ] CREATOR solo ve sus piezas
+- [ ] APPROVER_A/B ven bandeja de pendientes
+- [ ] APPROVER_B ve módulo de auditoría de imagen
+- [ ] Estados se actualizan correctamente
+
+## 🧩 Troubleshooting
+- **CORS error**: backend debe permitir el origin de Vercel/local
+- **401**: token expirado → refrescar sesión Supabase
+- **No veo approvals**: rol incorrecto o mapping faltante en `profiles`
+
+## 📌 Notas
+- El “Brand DNA” vive en **Supabase Postgres + pgvector**.
+- OpenAI se usa solo para **embeddings**; la generación de texto es vía **Groq** y la auditoría de imagen vía **Google AI Studio**.
