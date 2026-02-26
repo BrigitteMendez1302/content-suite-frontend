@@ -495,6 +495,25 @@ export default function Governance({ accessToken, role }: { accessToken: string 
                           </div>
                         )}
 
+                
+                        {auditRes?.report?.validated_rules_count !== undefined && (
+                          <div className="text-xs text-slate-600">
+                            Reglas validadas: <b>{auditRes.report.validated_rules_count}</b>
+                          </div>
+                        )}
+
+                        {Array.isArray(auditRes?.report?.validated_rules) && auditRes.report.validated_rules.length > 0 && (
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                            <div className="text-sm font-semibold text-slate-900">Reglas validadas</div>
+                            <ul className="mt-2 space-y-1 text-sm text-slate-800">
+                              {auditRes.report.validated_rules.map((x: string, i: number) => (
+                                <li key={i}>• {x}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+              
+
                         {Array.isArray(auditRes.report.violations) && auditRes.report.violations.length > 0 && (
                           <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3">
                             <div className="text-sm font-semibold text-rose-900">Violaciones</div>
@@ -668,6 +687,23 @@ export default function Governance({ accessToken, role }: { accessToken: string 
             >
               {loading ? "Auditando..." : "Subir y auditar por marca"}
             </button>
+
+            {brandAuditRes?.report?.validated_rules_count !== undefined && (
+              <div className="text-xs text-slate-600 mt-3">
+                Reglas validadas: <b>{brandAuditRes.report.validated_rules_count}</b>
+              </div>
+            )}
+
+            {Array.isArray(brandAuditRes?.report?.validated_rules) && brandAuditRes.report.validated_rules.length > 0 && (
+              <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                <div className="text-sm font-semibold text-slate-900">Reglas validadas</div>
+                <ul className="mt-2 space-y-1 text-sm text-slate-800">
+                  {brandAuditRes.report.validated_rules.map((x: string, i: number) => (
+                    <li key={i}>• {x}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {brandAuditRes?.report?.violations?.length > 0 && (
               <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-3">
